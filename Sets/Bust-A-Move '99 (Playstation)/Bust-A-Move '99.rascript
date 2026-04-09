@@ -545,7 +545,7 @@ CollectionAchievements = {
     37: "Imperial march",
 }
 
-CollectionStartAchievement = {
+CollectionStartAchievements = {
     0: 1,
     1: 33,
     2: 66,
@@ -586,7 +586,7 @@ CollectionStartAchievement = {
     37: 993,
 }
 
-CollectionEndAchievement = {
+CollectionEndAchievements = {
     0: 32,
     1: 65,
     2: 97,
@@ -625,6 +625,47 @@ CollectionEndAchievement = {
     35: 988,
     36: 992,
     37: 1025,
+}
+
+CollectionPointAchievements = {
+    0: 3,
+    1: 3,
+    2: 3,
+    3: 3,
+    4: 3,
+    5: 4,
+    6: 2,
+    7: 4,
+    8: 4,
+    9: 5,
+    10: 5,
+    11: 2,
+    12: 2,
+    13: 5,
+    14: 5,
+    15: 5,
+    16: 2,
+    17: 4,
+    18: 4,
+    19: 4,
+    20: 3,
+    21: 3,
+    22: 2,
+    23: 3,
+    24: 3,
+    25: 4,
+    26: 4,
+    27: 4,
+    28: 4,
+    29: 5,
+    30: 5,
+    31: 2,
+    32: 2,
+    33: 2,
+    34: 4,
+    35: 4,
+    36: 2,
+    37: 5,
 }
 
 
@@ -911,6 +952,18 @@ achievement(
 
 // Win Contest Mode --------------------------------------------->>>>>
 
+for key in CollectionAchievements
+{
+    achievement(
+        format(CollectionAchievements[key]),
+        format("Without quitting the game, finish Stage {0} to {1} in Collection Mode", CollectionStartAchievements[key], CollectionEndAchievements[key]),
+        CollectionPointAchievements[key],
+        CollectionProgress(CollectionStartAchievements[key], CollectionEndAchievements[key])
+    )
+}
+
+
+// Leaderboards       #-----#-----#-----#-----#-----#
 
 
 
