@@ -22,8 +22,8 @@ function DemoScreen() => byte(0x056A3C) == 1
 //            6=Game Select
 //            7=Difficulty Select
 function ArcadeMenu() => byte(0x1FFF9D) == 6 || byte(0x1FFF9D) == 7
-GameSelect = 0x06
-DifficultySelect = 0x07
+function GameSelect() => byte(0x1FFF9D) == 0x06
+function DifficultySelect() => byte(0x1FFF9D) == 0x07
 
 // $0x1FFF84: [8-bit] Edit Mode Menu and Character Select
 //            2=Edit Mode Menu
@@ -56,6 +56,9 @@ function Continue() => byte(0x056ec0) == 0
 // $0x05684a: [8-bit] Victory Beat Stage
 //            0x00=Victory
 function Victory() => byte(0x0568d8) == 0
+
+// $0x1fff8d: [8-bit] Result screen Challenge Mode 0x2f
+function ChallengeResultScreen() => byte(0x1fff8d) == 0x2f
 
 // $0x056ccc: [8-bit] Ready GO! and Game Started
 function StageStarting() => byte(0x056ccc) == 1
@@ -90,11 +93,11 @@ PuzzleMode = 0x00
 PlayerComputerMode = 0x01
 PlayerPlayerMode = 0x02
 
-// $0x056b84: [8-bit] Arcade Mode Difficulty Selected
+// $0x056b84: [32-bit] Arcade Mode Difficulty Selected
 // 0=Practice Mode
 // 1=Normal Mode
 // 2=Ver2.5 /Hard/ Variety
-function ArcadeDifficulty() => word(0x056b84)
+function ArcadeDifficulty() => dword(0x056b84)
 PracticeMode = 0x00
 NormalMode = 0x01
 HardMode = 0x02
@@ -110,6 +113,9 @@ NotAnotherWorld = 0x00
 function Paused() => byte(0x056848)
 Unpaused = 0x00
 Paused = 0x01
+
+// $0x055d30 [32-bit] Frame Counter from Game start 60fps
+function Time() => word(0x055d30)
 
 // CharacterPlayerOne is the character of Player 1
 // 0=Bub
@@ -144,6 +150,18 @@ SpecialDrunk = 0x0c
 // Rounds in Puzzle
 function Round() => word(0x056D10) + 1
 
+// $0x056a80: [32-bit] Invisible Rounds every Set
+//            0=Round 1
+//            1=Round 5
+function SectionRound() => dword(0x056a80) + 1
+
+function CongratulationsPractice() => dword(0x0568d4) == 0x0d
+
+// $0x1297dc: [16-bit] Win Streak
+//            0=0
+//            1=1
+function WinStreak() => word(0x1297dc)
+
 // $0x056dcc: [16-bit] Current Set in Puzzle Mode
 // 1=A
 // 2=B
@@ -166,18 +184,30 @@ function Set() => word(0x056dcc)
 //            19=20
 function ChallengeGrade() => byte(0x056d34) + 1
 
+// $0x1240bc: [8-bit] Rounds Cleared in Challenge Mode
+function ChallengeRound() => byte(0x1240bc)
+
+// $0x12444c: [8-bit] Speed amount in Challenge Mode
+function ChallengeSpeed() => byte(0x12444c)
+
+// $0x124470: [8-bit] Rendered Technique amount in Challenge Mode
+function ChallengeTechnique() => byte(0x124470)
+
+// $0x124494: [8-bit] Rendered Strategy amount in Challenge Mode
+function ChallengeStrategy() => byte(0x124494)
+
 // $0x13a830: Stage in Collection Mode
 //            0=1
 //            ...
 //            1024=1025
 function CollectionStage() => word(0x13A830) + 1
 
-// Difficulty Settings
+// $0x056e14: [32-bit] Difficulty Settings
 // 0=Easy
 // 1=Normal
 // 2=Hard
 // 3=Very Hard
-function DifficultySettings() => word(0x056E14)
+function DifficultySettings() => dword(0x056E14)
 Easy = 0x00
 Normal = 0x01
 Hard = 0x02
@@ -191,10 +221,10 @@ function HandicapOff() => Handicap() == 0
 function HandicapOn() => Handicap() == 1
 
 //PlayerOneScore XXX,XXX,XX0
-function PlayerOneScore() => dword(0x09D790)
+function PlayerOneScore() => bcd(dword(0x09D790))
 
 // PlayerTwoScore XXX,XXX,XX0
-function PlayerTwoScore() => dword(0x09d87c)
+function PlayerTwoScore() => bcd(dword(0x09d87c))
 
 // $0x056f0c: Player vs Player Mode Cups Player
 //            0= 0 Cups
@@ -211,6 +241,11 @@ function PlayerTwoCups() => byte(0x056f10)
 // Achievements
 
 // Helper
+
+function TimeValue()
+{
+    return (prev(Time()) < Time())
+}
 
 // Puzzle Mode
 
@@ -246,17 +281,12 @@ function SetGroup(SetCheck)
 
 function UnwantedValues()
 {
-    return DemoScreen() && HandicapOn()
-}
-
-function UnwantedPuzzleValues()
-{
-    return UnwantedValues() && DifficultySettings() == Easy && GameOver()
+    return DemoScreen() || HandicapOn() || MainMenu() || TitleScreen()
 }
 
 function UnwantedGameOverValues()
 {
-    return UnwantedValues() && GameOver()
+    return UnwantedValues() || GameOver()
 }
 
 // Returns the value to check when arcadeMode is started and which mode is picked within
@@ -272,12 +302,60 @@ function ChallengeModeCheck()
 
 function WinContestModeCheck(progress)
 {
-    return Mode() == WinContestMode && StageStarted() && tally(progress - 1, prev(Round()) != Round())
+    return Mode() == WinContestMode && StageStarted() && tally(progress - 1, prev(WinStreak()) != WinStreak())
 }
 
 function CollectionModeCheck()
 {
     return Mode() == CollectionMode && StageStarted()
+}
+
+
+// Conditions
+
+function CreditCondition()
+{
+    return prev(!CreditScreen()) && CreditScreen()
+}
+
+function PracticeCondition()
+{
+    return prev(!CongratulationsPractice()) && CongratulationsPractice()
+}
+
+function ChallengeCondition()
+{
+    return tally(26, prev(Round()) != Round()) && prev(!ChallengeResultScreen()) && ChallengeResultScreen()
+}
+
+// Challenge Mode logic to tally the multiple scores that you can get (This is the best solution I could think off :/)
+function ChallengeTally()
+{
+    values_array = []
+    
+    // Adds bonus if Stats are higher than or equal to X
+    for i in range(1, 5)
+    {
+        array_push(values_array,
+            measured(ChallengeGrade() + i, when=ChallengeSpeed() + ChallengeTechnique() + ChallengeStrategy() >= 15 &&
+            ChallengeSpeed() + ChallengeTechnique() + ChallengeStrategy() < 20)
+        )
+    }
+    
+    return values_array
+}
+
+function ChallengeValue()
+{
+    return max_of(
+        always_false(), ChallengeGrade(),
+        // First bonus reflected in the function ChallengeTally()
+        ChallengeTally()[0],
+        ChallengeTally()[1],
+        ChallengeTally()[2],
+        ChallengeTally()[3],
+        ChallengeTally()[4]
+    )
 }
 
 // Checks if the set is completed by making sure all the conditions are right.
@@ -287,9 +365,9 @@ function SetCompletion(ASet, ArcadeDifficulty, IsAnotherWorld)
 {
     start = once(ArcadeModeCheck(PuzzleMode, ArcadeDifficulty) && SetGroup(ASet) && AnotherWorld() == IsAnotherWorld)
     
-    cancel = never(UnwantedPuzzleValues())
+    cancel = never(UnwantedGameOverValues() && DifficultySettings() == Easy)
     
-    condition = Victory() && ((prev(Set()) < Set()) || prev(!CreditScreen()) && CreditScreen())
+    condition = Victory() && ((prev(Set()) < Set()) || CreditCondition())
     
     return start && cancel && condition
 }
@@ -329,11 +407,6 @@ function ComputerCondition(Player)
     }
 }
 
-function ComputerCreditCondition()
-{
-    return prev(!CreditScreen()) && CreditScreen()
-}
-
 function ComputerCompletion(Opponent, ArcadeDifficulty)
 {
     start = once(ArcadeModeCheck(PlayerComputerMode, ArcadeDifficulty))
@@ -344,9 +417,9 @@ function ComputerCompletion(Opponent, ArcadeDifficulty)
     
     alt_playertwo_opponent = CurrentOpponent(PlayerTwo, Opponent) && ComputerCondition(PlayerTwo)
     
-    alt_playerone_credit = CurrentOpponent(PlayerOne, Opponent) && ComputerCreditCondition()
+    alt_playerone_credit = CurrentOpponent(PlayerOne, Opponent) && CreditCondition()
     
-    alt_playertwo_credit = CurrentOpponent(PlayerTwo, Opponent) && ComputerCreditCondition()
+    alt_playertwo_credit = CurrentOpponent(PlayerTwo, Opponent) && CreditCondition()
     
     return start && cancel && Victory() && (alt_playerone_opponent || alt_playertwo_opponent || alt_playerone_credit || alt_playertwo_credit)
 }
@@ -381,7 +454,7 @@ function WinContestProgress(progress)
     
     cancel = never(UnwantedGameOverValues())
     
-    condition = prev(Round()) == progress - 1 && Round() == progress
+    condition = prev(WinStreak()) == progress - 1 && WinStreak() == progress
     
     return start && cancel && condition
 }
@@ -405,7 +478,7 @@ function CollectionProgress(first, last)
 {
     start = once(CollectionModeCheck())
     
-    cancel = never(HandicapOn())
+    cancel = never(UnwantedValues())
     
     stage_array = range(first, last)
     
@@ -414,6 +487,117 @@ function CollectionProgress(first, last)
     return start && cancel && measured(condition)
 }
 
+
+// #-----#-----#-----#-----#-----#-----#-----#-----#-----#-----#
+// Leaderboard Logic
+// High Score
+
+// Cancel
+
+
+function LBCancel()
+{
+    return (
+        UnwantedValues() || Continue()
+    )
+}
+
+
+function LBPuzzleCancel()
+{
+    return LBCancel() || DifficultySettings() == Easy
+}
+
+// Value
+function PlayerScore(player)
+{   
+    player_score = PlayerOneScore()
+    if (player == PlayerTwo) {
+        player_score = PlayerTwoScore()
+    }
+    return measured(player_score, when=Player() == player)
+}
+
+function HighScoreValue()
+{
+    return max_of(always_false(), PlayerScore(PlayerOne), PlayerScore(PlayerTwo))
+}
+
+// Puzzle Mode -->
+
+function LBPuzzleSpeedrunStart(difficulty, another_world)
+{
+    return (
+        Mode() == ArcadeMode && 
+        ArcadeMode() == PuzzleMode && 
+        prev(DifficultySelect()) && !DifficultySelect() &&
+        ArcadeDifficulty() == difficulty &&
+        AnotherWorld() == another_world
+    )
+}
+
+function LBCancel()
+{
+    return (
+        UnwantedValues() || Continue()
+    )
+}
+
+function LBPuzzleHighScoreStart(difficulty, another_world)
+{
+    condition = CreditCondition()
+    if (difficulty == PracticeMode) {
+        condition = PracticeCondition()
+    }
+    return (
+        Mode() == ArcadeMode &&
+        ArcadeMode() == PuzzleMode &&
+        ArcadeDifficulty() == difficulty &&
+        condition &&
+        DifficultySettings() != Easy &&
+        AnotherWorld() == another_world  &&
+        !UnwantedValues()
+    )
+}
+
+// Computer Mode -->
+
+function LBComputerSpeedrunStart(difficulty)
+{
+    return (
+        Mode() == ArcadeMode &&
+        ArcadeMode() == PlayerComputerMode &&
+        prev(DifficultySelect()) && !DifficultySelect() &&
+        ArcadeDifficulty() == difficulty
+    )
+}
+
+function LBComputerHighScoreStart(difficulty)
+{
+    condition = CreditCondition()
+    if (difficulty == PracticeMode) {
+        condition = PracticeCondition()
+    }
+    return (
+        Mode() == ArcadeMode &&
+        ArcadeMode() == PlayerComputerMode &&
+        ArcadeDifficulty() == difficulty &&
+        condition &&
+        !UnwantedValues()
+    )
+}
+
+// Challenge Mode -->
+
+function LBChallengeHighScoreStart()
+{
+    return (
+        Mode() == ChallengeMode &&
+        !UnwantedValues()
+    )
+}
+
+// #-----#-----#-----#-----#-----#-----#-----#-----#-----#-----#
 // Dictionaries
 
 // Puzzle Mode
@@ -782,6 +966,7 @@ SetLookup = {
     27: "Z",
 }
 
+// #-----#-----#-----#-----#-----#-----#-----#-----#-----#-----#
 // Achievements
 
 // Puzzle Mode --------------------------------------------->>>>>
@@ -965,6 +1150,175 @@ for key in CollectionAchievements
 
 // Leaderboards       #-----#-----#-----#-----#-----#
 
+// Puzzle Mode
+// Practice Mode
+
+leaderboard(
+    "Puzzle Mode Practice Speedrun", "Fastest time for completing Puzzle Mode on Practice",
+    LBPuzzleSpeedrunStart(PracticeMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    PracticeCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Practice Highest Score", "Highest Score earned in Puzzle Mode on Practice",
+    LBPuzzleHighScoreStart(PracticeMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+leaderboard(
+    "Puzzle Mode Practice Another World Speedrun", "Fastest time for completing Puzzle Mode on Practice in Another World",
+    LBPuzzleSpeedrunStart(PracticeMode, AnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Practice Another World Highest Score", "Highest Score earned in Puzzle Mode on Practice in Another World",
+    LBPuzzleHighScoreStart(PracticeMode, AnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+// Normal Mode
+
+leaderboard(
+    "Puzzle Mode Normal Speedrun", "Fastest time for completing Puzzle Mode on Normal",
+    LBPuzzleSpeedrunStart(NormalMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    CreditCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Normal Highest Score", "Highest Score earned in Puzzle Mode on Normal",
+    LBPuzzleHighScoreStart(NormalMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+leaderboard(
+    "Puzzle Mode Normal Another World Speedrun", "Fastest time for completing Puzzle Mode on Normal in Another World",
+    LBPuzzleSpeedrunStart(NormalMode, AnotherWorld),
+    LBPuzzleCancel(),
+    CreditCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Normal Another World Highest Score", "Highest Score earned in Puzzle Mode on Normal in Another World",
+    LBPuzzleHighScoreStart(NormalMode, AnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+// Ver2.5
+
+leaderboard(
+    "Puzzle Mode Ver2.5 Speedrun", "Fastest time for completing Puzzle Mode on Ver2.5",
+    LBPuzzleSpeedrunStart(HardMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    CreditCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Ver2.5 Highest Score", "Highest Score earned in Puzzle Mode on Ver2.5",
+    LBPuzzleHighScoreStart(HardMode, NotAnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    TimeValue(), format="TENS"
+)
+
+leaderboard(
+    "Puzzle Mode Ver2.5 Another World Speedrun", "Fastest time for completing Puzzle Mode on Ver2.5 in Another World",
+    LBPuzzleSpeedrunStart(HardMode, AnotherWorld),
+    LBPuzzleCancel(),
+    CreditCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Puzzle Mode Ver2.5 Another World Highest Score", "Highest Score earned in Puzzle Mode on Ver2.5 in Another World",
+    LBPuzzleHighScoreStart(HardMode, AnotherWorld),
+    LBPuzzleCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+
+// Player vs Computer Mode
+// Practice
+
+leaderboard(
+    "Player vs Computer Mode Practice Speedrun", "Fastest time for completing Player vs Computer on Practice",
+    LBComputerSpeedrunStart(PracticeMode),
+    LBCancel(),
+    PracticeCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Player vs Computer Mode Practice Highest Score", "Highest Score earned in Player vs Computer on Practice",
+    LBComputerHighScoreStart(PracticeMode),
+    LBCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+// Normal
+
+leaderboard(
+    "Player vs Computer Mode Normal Speedrun", "Fastest time for completing Player vs Computer on Normal",
+    LBComputerSpeedrunStart(NormalMode),
+    LBPuzzleCancel(),
+    PracticeCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Player vs Computer Mode Normal Highest Score", "Highest Score earned in Player vs Computer on Normal",
+    LBComputerHighScoreStart(PracticeMode),
+    LBCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+// Hard
+
+leaderboard(
+    "Player vs Computer Mode Hard Speedrun", "Fastest time for completing Player vs Computer on Hard",
+    LBComputerSpeedrunStart(HardMode),
+    LBPuzzleCancel(),
+    PracticeCondition(),
+    TimeValue(), format="FRAMES", lower_is_better=true
+)
+
+leaderboard(
+    "Player vs Computer Mode Hard Highest Score", "Highest Score earned in Player vs Computer on Hard",
+    LBComputerHighScoreStart(PracticeMode),
+    LBCancel(),
+    always_true(),
+    HighScoreValue(), format="TENS"
+)
+
+
+// Challenge Mode
+
+leaderboard(
+    "Challenge Mode Highest Score", "Highest Score earned in Challenge Mode",
+    LBChallengeHighScoreStart(),
+    UnwantedValues(),
+    ChallengeCondition(),
+    ChallengeValue()
+)
 
 
 // Rich Presence Functions       #-----#-----#-----#-----#-----#
@@ -1054,9 +1408,38 @@ rich_presence_conditional_display(CreditScreen(), "Watching the Credits")
 // Section for the in-stage logic
 // Arcade Mode Sections
 // Puzzle Mode
+
 // Player One
 rich_presence_conditional_display(
-(Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerOne,
+(Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerOne && ArcadeDifficulty() == PracticeMode,
+"{0}  {1} is in {2}{3} on {4} | Round {5} | Score {6}0 | {7} Difficulty",
+    rich_presence_lookup("Paused", Paused(), PausedLookup),
+    rich_presence_lookup("CharacterP1", RPCharacter(1), CharacterLookup(1)),
+    rich_presence_lookup("ArcadeMode", ArcadeMode(), ArcadeModeLookup),
+    rich_presence_lookup("AnotherWorld", AnotherWorld(), AnotherWorldLookup),
+    rich_presence_lookup("ArcadeDifficulty", ArcadeDifficulty(), PuzzleDifficultyLookup),
+    rich_presence_value("Round", Round()),
+    rich_presence_value("Score", bcd(RPScore(1))),
+    rich_presence_lookup("Difficulty", DifficultySettings(), DifficultyLookup)
+)
+
+// Player Two
+rich_presence_conditional_display(
+(Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerOne && ArcadeDifficulty() == PracticeMode,
+"{0}  {1} is in {2}{3} on {4} | Round {5} | Score {6}0 | {7} Difficulty",
+    rich_presence_lookup("Paused", Paused(), PausedLookup),
+    rich_presence_lookup("CharacterP2", RPCharacter(2), CharacterLookup(2)),
+    rich_presence_lookup("ArcadeMode", ArcadeMode(), ArcadeModeLookup),
+    rich_presence_lookup("AnotherWorld", AnotherWorld(), AnotherWorldLookup),
+    rich_presence_lookup("ArcadeDifficulty", ArcadeDifficulty(), PuzzleDifficultyLookup),
+    rich_presence_value("Round", Round()),
+    rich_presence_value("Score", bcd(RPScore(1))),
+    rich_presence_lookup("Difficulty", DifficultySettings(), DifficultyLookup)
+)
+
+// Player One
+rich_presence_conditional_display(
+(Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerOne && ArcadeDifficulty() != PracticeMode,
 "{0}  {1} is in {2}{3} on {4} | Set {5} | Round {6} | Score {7}0 | {8} Difficulty",
     rich_presence_lookup("Paused", Paused(), PausedLookup),
     rich_presence_lookup("CharacterP1", RPCharacter(1), CharacterLookup(1)),
@@ -1071,7 +1454,7 @@ rich_presence_conditional_display(
 
 // Player Two
 rich_presence_conditional_display(
-(   Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerTwo,
+(   Mode() == ArcadeMode && ArcadeMode() == PuzzleMode) && Player() == PlayerTwo && ArcadeDifficulty() != PracticeMode,
     "{0}  {1} is in {2}{3} on {4} | Set {5} | Round {6} | Score {7}0 | {8} Difficulty",
         rich_presence_lookup("Paused", Paused(), PausedLookup),
         rich_presence_lookup("CharacterP2", RPCharacter(2), CharacterLookup(2)),
@@ -1209,6 +1592,7 @@ rich_presence_conditional_display(
 
 // Always true Loading
 rich_presence_display("Loading...")
+
 
 
 
